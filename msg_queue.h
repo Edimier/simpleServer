@@ -1,6 +1,6 @@
 #ifndef MSG_QUEUE_H
 #define MSG_QUEUE_H
-
+#include "common.h"
 // 双向队列，同时也可以作为栈和链表来使用
 typedef struct QNODE
 {

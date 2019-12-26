@@ -1,5 +1,6 @@
 #include "common.h"
 #include "service_socket.h"
+#include "msg_queue.h"
 
 int setNonBlocking(int fd)
 {
@@ -36,8 +37,8 @@ void initListenSocket(int efd, short port, MyEpoll * epoll)
     bind(lfd, (struct sockaddr *)&sin, sizeof(sin));
 
     listen(lfd, 20);
-    eventSet(&(epoll->m_efdEvent), lfd, acceptConnect, &(epoll->m_efdEvent));
-    eventAdd(efd, EPOLLIN, &(epoll->m_efdEvent));
+    eventSet(&(epoll->m_eventsSet[MAX_EVENTS]), lfd, acceptConnect, &(epoll->m_eventsSet[MAX_EVENTS]));
+    eventAdd(efd, EPOLLIN, &(epoll->m_eventsSet[MAX_EVENTS]));
 
     return;
 }
@@ -62,7 +63,7 @@ void acceptConnect(int lfd, int events, void *arg, void * expend)
     {
         for(i = 0; i < MAX_EVENTS; i++)
         {
-            if(epoll->m_eventsSet[i].m_status ==0)
+            if(epoll->m_eventsSet[i].m_status == 0)
                 break;
         }
 
@@ -95,11 +96,11 @@ void eventSet(MyEvent *ev, int fd, callBackFunc cbk, void *arg)
     ev->m_events = 0;
     ev->m_arg = arg;
     ev->m_status = 0;
-    if(ev->m_len <= 0)
-    {
-        memset(ev->m_buf, 0, sizeof(ev->m_buf));
-        ev->m_len = 0;
-    }
+    // if(ev->m_len <= 0)
+    // {
+    //     memset(ev->m_buf, 0, sizeof(ev->m_buf));
+    //     ev->m_len = 0;
+    // }
     ev->m_last_active = time(NULL);
     return;
 }
@@ -142,28 +143,37 @@ void recvData(int fd, int events, void *arg, void * expend)
     MyEvent *ev = (MyEvent *)arg;
     int len;
 
-    len = recv(fd, ev->m_buf, sizeof(ev->m_buf), 0);
+    PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
+    memset(socket_data->m_data, 0, sizeof(socket_data->m_data));
+    socket_data->m_fd = fd;
+    len = recv(fd, socket_data->m_data, sizeof(socket_data->m_data), 0);
+    socket_data->m_size = len;
 
-    eventDel(efd, ev);
+    // eventDel(efd, ev);
 
     if (len > 0) 
     {
-        ev->m_len = len;
-        ev->m_buf[len] = '\0';
-        printf("C[%d]:%s\n", fd, ev->m_buf);                  
+        // ev->m_len = len;
+        // ev->m_buf[len] = '\0';
+        // printf("C[%d]:%s\n", fd, ev->m_buf);                  
 
-        eventSet(ev, fd, sendData, ev);
-        eventAdd(efd, EPOLLOUT, ev);
+        // eventSet(ev, fd, sendData, ev);
+        // eventAdd(efd, EPOLLOUT, ev);
+        InsertTail(epoll->m_queue, (void *)socket_data, 0);
     } 
     else if (len == 0)
     {
+        eventDel(efd, ev);
         close(ev->m_fd);
         printf("[fd=%d] closed\n", fd);
+        free(socket_data);
     } 
     else 
     {
+        eventDel(efd, ev);
         close(ev->m_fd);
         printf("recv[fd=%d] error[%d]:%s\n", fd, errno, strerror(errno));
+        free(socket_data);
     }   
     return;
 }
@@ -174,13 +184,15 @@ void sendData(int fd, int events, void *arg, void * expend)
     int efd = epoll->m_efd;
 
     MyEvent *ev = (MyEvent *)arg;
-    int len = send(fd, ev->m_buf, ev->m_len, 0);
+
+    char buff[] = "ni hao!\n";
+    int len = send(fd, buff, sizeof(buff), 0);
 
     eventDel(efd, ev);
 
     if (len > 0) 
     {
-        printf("send[fd=%d], [%d]%s\n", fd, len, ev->m_buf);
+        // printf("send[fd=%d], [%d]%s\n", fd, len, ev->m_buf);
         eventSet(ev, fd, recvData, ev);
         eventAdd(efd, EPOLLIN, ev);
     }
@@ -190,6 +202,30 @@ void sendData(int fd, int events, void *arg, void * expend)
         printf("send[fd=%d] error %s\n", fd, strerror(errno));
     }
     return ;
+}
+
+
+void * workproc(void *ptr)
+{
+    MyEpoll * epoll = (MyEpoll*)ptr;
+    while(1)
+    {
+        PQNode node = PopHead(epoll->m_queue);
+        if (node)
+        {
+            PSocketData data = (PSocketData)node->m_data;
+            printf("workproc read data=%s\n", data->m_data);
+            int len = send(data->m_fd, data->m_data, data->m_size, 0);
+            if(len <= 0)
+            {
+                printf("send[fd=%d] error %s\n", data->m_fd, strerror(errno));
+            }
+            free(node);
+        }
+        //sleep(1);
+    }
+    
+    return NULL;
 }
 
 void mainLoop()
@@ -207,7 +243,14 @@ void mainLoop()
     struct epoll_event events[MAX_EVENTS + 1];
     printf("server running:port[%d]\n", port);
 
-    epoll->m_queue = CreateQueue();
+    epoll.m_queue = CreateQueue();
+
+    pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    // 分离状态
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&tid, &attr, workproc, (void*)&epoll);
 
     int i;
     while(1)

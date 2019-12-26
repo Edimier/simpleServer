@@ -18,13 +18,10 @@ PQueue CreateQueue()
 	queue->m_head = NULL;
 	queue->m_tail = NULL;
 	queue->m_count = 0;
-
-	// pthread_mutex_t mutex;
-	// pthread_mutexattr_t mutexattr;
-	// pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_NORMAL);
-	// pthread_mutex_init(&mutex, &mutexattr);
-	queue->m_mutex = PTHREAD_MUTEX_NORMAL;
-	queu->m_cond = PTHREAD_COND_INITIALIZER;
+	pthread_mutexattr_t mutexattr;
+	pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_NORMAL);
+	pthread_mutex_init(&queue->m_mutex, &mutexattr);
+	pthread_cond_init(&queue->m_cond, NULL);
 
 	return queue;
 }
@@ -32,22 +29,22 @@ PQueue CreateQueue()
 PQNode PopHead(PQueue queue)
 {
 	if( ! queue || ! queue->m_head) return NULL;
-	pthread_mutex_lock(& queue->mutex);
+	pthread_mutex_lock(& queue->m_mutex);
 	PQNode head = queue->m_head;
 	queue->m_head = head->m_next;
 	queue->m_count--;
-	pthread_mutex_unlock(& queue->mutex);
+	pthread_mutex_unlock(& queue->m_mutex);
 	return head;
 }
 
 PQNode 	PopTail(PQueue queue)
 {
 	if( ! queue || ! queue->m_tail) return NULL;
-	pthread_mutex_lock(& queue->mutex);
+	pthread_mutex_lock(& queue->m_mutex);
 	PQNode tail = queue->m_tail;
 	queue->m_tail = tail->m_pre;
 	queue->m_count--;
-	pthread_mutex_unlock(& queue->mutex);
+	pthread_mutex_unlock(& queue->m_mutex);
 	return tail;
 }
 PQNode 	TopHead(PQueue queue)
@@ -65,7 +62,7 @@ PQNode 	TopTail(PQueue queue)
 int    	ReleaseQueueNode(PQueue queue, PQNode node)
 {
 	if(!node || !queue) return 0;
-	pthread_mutex_lock(& queue->mutex);
+	pthread_mutex_lock(& queue->m_mutex);
 	if(queue->m_head == node)
 	{
 		PopHead(queue);
@@ -83,7 +80,7 @@ int    	ReleaseQueueNode(PQueue queue, PQNode node)
 		queue->m_count--;
 	}
 	free(node);
-	pthread_mutex_unlock(& queue->mutex);
+	pthread_mutex_unlock(& queue->m_mutex);
 	return 1;
 }
 
@@ -97,7 +94,7 @@ int    	IsQueueEmpty(PQueue queue)
 int		InsertTail(PQueue queue, void * data, int size)
 {
 	if(!queue) return 0;
-	pthread_mutex_lock(& queue->mutex);
+	pthread_mutex_lock(& queue->m_mutex);
 	PQNode node = CreateQueueNode(data, size);
 	if(IsQueueEmpty(queue))
 	{
@@ -115,13 +112,13 @@ int		InsertTail(PQueue queue, void * data, int size)
 	}
 
 	pthread_cond_signal(& queue->m_cond);
-	pthread_mutex_unlock(& queue->mutex);
+	pthread_mutex_unlock(& queue->m_mutex);
 	return 1;
 }
 int 	InsertHead(PQueue queue, void * data, int size)
 {
 	if(!queue) return 0;
-	pthread_mutex_lock(& queue->mutex);
+	pthread_mutex_lock(& queue->m_mutex);
 	PQNode node = CreateQueueNode(data, size);
 	if(IsQueueEmpty(queue))
 	{
@@ -138,7 +135,7 @@ int 	InsertHead(PQueue queue, void * data, int size)
 		queue->m_count++;
 	}
 	pthread_cond_signal(& queue->m_cond);
-	pthread_mutex_unlock(& queue->mutex);
+	pthread_mutex_unlock(& queue->m_mutex);
 	return 1;
 }
 
