@@ -85,7 +85,7 @@ void acceptConnect(int lfd, int events, void *arg, void * expend)
         eventAdd(epoll->m_efd, EPOLLIN, &(epoll->m_eventsSet[i]));
     }while(0);
 
-    printf("new connect[%s:%d],[time:%ld],pos[%d]",inet_ntoa(cin.sin_addr), ntohs(cin.sin_port), epoll->m_eventsSet[i].m_last_active, i);
+    printf("new connect[%s:%d],[time:%ld],pos[%d]\n",inet_ntoa(cin.sin_addr), ntohs(cin.sin_port), epoll->m_eventsSet[i].m_last_active, i);
     return;
 }
 
@@ -130,6 +130,13 @@ void eventDel(int efd, MyEvent *ev)
         return;
     epv.data.ptr = NULL;
     ev->m_status = 0;
+
+    // if(ev->m_buf)
+    // {
+    //     free(ev->m_buf);
+    //     ev->m_buf = NULL;
+    //     ev->m_len = 0;
+    // }
     epoll_ctl(efd, EPOLL_CTL_DEL, ev->m_fd, &epv);
     return;
 }
@@ -141,39 +148,36 @@ void recvData(int fd, int events, void *arg, void * expend)
     int efd = epoll->m_efd;
 
     MyEvent *ev = (MyEvent *)arg;
-    int len;
 
-    PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
-    memset(socket_data->m_data, 0, sizeof(socket_data->m_data));
-    socket_data->m_fd = fd;
-    len = recv(fd, socket_data->m_data, sizeof(socket_data->m_data), 0);
-    socket_data->m_size = len;
-
+    
+    char tmpBuff[BUFLEN] = {0};
+    // int len = recv(fd, socket_data->m_data, sizeof(socket_data->m_data), 0);
+    int len = recv(fd, tmpBuff, BUFLEN, 0);
+    
     // eventDel(efd, ev);
-
     if (len > 0) 
     {
-        // ev->m_len = len;
-        // ev->m_buf[len] = '\0';
-        // printf("C[%d]:%s\n", fd, ev->m_buf);                  
+        // 正常情况需要将数据放在ev缓存上，然后解析出来一个包后插入到消息队列，实现起来有点耗时间，这里暂时不实现
+        PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
+        memset(socket_data, 0, sizeof(SocketData));
 
-        // eventSet(ev, fd, sendData, ev);
-        // eventAdd(efd, EPOLLOUT, ev);
+        socket_data->m_data = (char *)calloc(len + 1, 1);
+        socket_data->m_fd = fd;
+        socket_data->m_size = len;
+        memcpy(socket_data->m_data, tmpBuff, len);
         InsertTail(epoll->m_queue, (void *)socket_data, 0);
-    } 
+    }
     else if (len == 0)
     {
         eventDel(efd, ev);
         close(ev->m_fd);
         printf("[fd=%d] closed\n", fd);
-        free(socket_data);
     } 
     else 
     {
         eventDel(efd, ev);
         close(ev->m_fd);
         printf("recv[fd=%d] error[%d]:%s\n", fd, errno, strerror(errno));
-        free(socket_data);
     }   
     return;
 }
@@ -214,7 +218,7 @@ void * workproc(void *ptr)
         if (node)
         {
             PSocketData data = (PSocketData)node->m_data;
-            printf("workproc read data=%s\n", data->m_data);
+            printf("workproc read data=%s", data->m_data);
             int len = send(data->m_fd, data->m_data, data->m_size, 0);
             if(len <= 0)
             {
@@ -233,6 +237,7 @@ void mainLoop()
     int port = SERV_PORT;
 
     MyEpoll epoll;
+    memset(&epoll, 0, sizeof(MyEpoll));
 
     epoll.m_efd = epoll_create(MAX_EVENTS + 1);
 
