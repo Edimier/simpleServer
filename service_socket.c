@@ -219,7 +219,7 @@ void * workproc(void *ptr)
         if (node)
         {
             PSocketData data = (PSocketData)node->m_data;
-            printf("workproc read data=%s", data->m_data);
+            printf("workproc %d read data=%s", pthread_self(), data->m_data);
             int len = send(data->m_fd, data->m_data, data->m_size, 0);
             if(len <= 0)
             {
@@ -227,7 +227,7 @@ void * workproc(void *ptr)
             }
             free(node);
         }
-        //sleep(1);
+        // sleep(1);
     }
     
     return NULL;
@@ -256,6 +256,8 @@ void mainLoop()
     pthread_attr_init(&attr);
     // 分离状态
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&tid, &attr, workproc, (void*)&epoll);
+    pthread_create(&tid, &attr, workproc, (void*)&epoll);
     pthread_create(&tid, &attr, workproc, (void*)&epoll);
 
     int i;
