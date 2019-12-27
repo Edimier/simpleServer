@@ -158,6 +158,7 @@ void recvData(int fd, int events, void *arg, void * expend)
     if (len > 0) 
     {
         // 正常情况需要将数据放在ev缓存上，然后解析出来一个包后插入到消息队列，实现起来有点耗时间，这里暂时不实现
+        // 主要是处理黏包的情况
         PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
         memset(socket_data, 0, sizeof(SocketData));
 
