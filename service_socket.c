@@ -227,7 +227,6 @@ void * workproc(void *ptr)
             }
             free(node);
         }
-        // sleep(1);
     }
     
     return NULL;

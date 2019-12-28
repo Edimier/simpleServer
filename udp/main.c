@@ -4,6 +4,8 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 #define SERVER_PORT 8888
 #define BUFF_LEN 1024
