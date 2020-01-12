@@ -34,7 +34,7 @@ vpath %.o $(OBJDIR)
 
 .PHONY : all objs client clean rebuild
 
-all : config $(PROGRAM)
+all : config $(PROGRAM) client
 
 # Rules for producing the objects.
 #---------------------------------------------------

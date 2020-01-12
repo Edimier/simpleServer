@@ -78,7 +78,7 @@ void acceptConnect(int lfd, int events, void *arg, void * expend)
             break;
         }
 
-        // MyEvent * myEvent = (myEvent *) malloc(sizeof(MyEvent));
+        // MyEvent_s * myEvent = (myEvent_s *) malloc(sizeof(MyEvent_s));
         
         eventSet(&(epoll->m_eventsSet[i]), cfd, recvData, &(epoll->m_eventsSet[i]));
         eventAdd(epoll->m_efd, EPOLLIN, &(epoll->m_eventsSet[i]));
@@ -88,7 +88,7 @@ void acceptConnect(int lfd, int events, void *arg, void * expend)
     return;
 }
 
-void eventSet(MyEvent *ev, int fd, callBackFunc cbk, void *arg)
+void eventSet(MyEvent_s *ev, int fd, callBackFunc cbk, void *arg)
 {
     ev->m_fd = fd;
     ev->m_cbk = cbk;
@@ -104,7 +104,7 @@ void eventSet(MyEvent *ev, int fd, callBackFunc cbk, void *arg)
     return;
 }
 
-void eventAdd(int efd, int events, MyEvent *ev)
+void eventAdd(int efd, int events, MyEvent_s *ev)
 {
     struct epoll_event epv={0, {0}};
     int op = 0;
@@ -122,7 +122,7 @@ void eventAdd(int efd, int events, MyEvent *ev)
     return;
 }
 
-void eventDel(int efd, MyEvent *ev)
+void eventDel(int efd, MyEvent_s *ev)
 {
     struct epoll_event epv = {0, {0}};
     if(ev->m_status != 1)
@@ -146,37 +146,45 @@ void recvData(int fd, int events, void *arg, void * expend)
     MyEpoll * epoll = (MyEpoll*)expend;
     int efd = epoll->m_efd;
 
-    MyEvent *ev = (MyEvent *)arg;
+    MyEvent_s *ev = (MyEvent_s *)arg;
 
     char tmpBuff[BUFLEN] = {0};
     // int len = recv(fd, socket_data->m_data, sizeof(socket_data->m_data), 0);
     int len = recv(fd, tmpBuff, BUFLEN, 0);
 
-
-
-    int opt_val;
-    socklen_t opt_len = sizeof(opt_val);
+    // int opt_val;
+    // socklen_t opt_len = sizeof(opt_val);
  
-    if(getsockopt(fd, SOL_SOCKET, SO_RCVBUF , &opt_val, &opt_len) < 0)
-    {
-        perror("fail to getsockopt");
-    }
-    printf("recv buff len=%d\n", opt_val);
+    // if(getsockopt(fd, SOL_SOCKET, SO_RCVBUF , &opt_val, &opt_len) < 0)
+    // {
+    //     perror("fail to getsockopt");
+    // }
+    // printf("recv buff len=%d\n", opt_val);
     
     // eventDel(efd, ev);
     if (len > 0) 
     {
-        printf("recieve data len=%d\n", len);
-        // 正常情况需要将数据放在ev缓存上，然后解析出来一个包后插入到消息队列，实现起来有点耗时间，这里暂时不实现
-        // 主要是处理黏包的情况
-        PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
-        memset(socket_data, 0, sizeof(SocketData));
+        // initPack(&(ev->m_pack));
+        addData2Pack(&(ev->m_pack), tmpBuff, len);
 
-        socket_data->m_data = (char *)calloc(len + 1, 1);
-        socket_data->m_fd = fd;
-        socket_data->m_size = len;
-        memcpy(socket_data->m_data, tmpBuff, len);
-        InsertTail(epoll->m_queue, (void *)socket_data, 0);
+        char * data = NULL;
+        int dataLen = 0;
+        // 主要是处理黏包的情况
+        while(copyPack2Data(&(ev->m_pack), &data, &len) && data != NULL && dataLen > 0)
+        {
+
+            PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
+            memset(socket_data, 0, sizeof(SocketData));
+
+            // socket_data->m_data = (char *)calloc(len + 1, 1);
+            socket_data->m_data = data;
+            socket_data->m_fd = fd;
+            socket_data->m_size = dataLen;
+            // memcpy(socket_data->m_data, tmpBuff, len);
+            InsertTail(epoll->m_queue, (void *)socket_data, 0);
+            data = NULL;
+            dataLen = 0;
+        }
     }
     else if (len == 0)
     {
@@ -199,7 +207,7 @@ void sendData(int fd, int events, void *arg, void * expend)
     MyEpoll * epoll = (MyEpoll*)expend;
     int efd = epoll->m_efd;
 
-    MyEvent *ev = (MyEvent *)arg;
+    MyEvent_s *ev = (MyEvent_s *)arg;
 
     char buff[] = "ni hao!\n";
     int len = send(fd, buff, sizeof(buff), 0);
@@ -230,7 +238,7 @@ void * workproc(void *ptr)
         if (node)
         {
             PSocketData data = (PSocketData)node->m_data;
-            printf("workproc %d read data=%s", pthread_self(), data->m_data);
+            printf("workproc %ld read data=%s", pthread_self(), data->m_data);
             int len = send(data->m_fd, data->m_data, data->m_size, 0);
             if(len <= 0)
             {
@@ -243,6 +251,7 @@ void * workproc(void *ptr)
                     printf("send[fd=%d] error %s\n", data->m_fd, strerror(errno));
                 }    
             }
+            free(node->m_data);
             free(node);
         }
     }
@@ -288,7 +297,7 @@ void mainLoop()
         }
         for(i = 0; i < nfd; i++)
         {
-            MyEvent *ev = (MyEvent *)events[i].data.ptr;
+            MyEvent_s *ev = (MyEvent_s *)events[i].data.ptr;
             if((events[i].events & EPOLLIN) &&(ev->m_events & EPOLLIN))
             {
                 ev->m_cbk(ev->m_fd, events[i].events, ev->m_arg, (void *)&epoll);
