@@ -28,8 +28,15 @@ PQueue CreateQueue()
 
 PQNode PopHead(PQueue queue)
 {
-	if( ! queue || ! queue->m_head) return NULL;
 	pthread_mutex_lock(& queue->m_mutex);
+	while(! queue || ! queue->m_head)
+		pthread_cond_wait(&queue->m_cond, &queue->m_mutex);
+
+	// if( ! queue || ! queue->m_head)
+	// {
+	// 	return NULL;
+	// }
+	
 	PQNode head = queue->m_head;
 	queue->m_head = head->m_next;
 	queue->m_count--;
@@ -146,5 +153,6 @@ int 	ReleaseQueue(PQueue queue)
 		PQNode node = queue->m_head;
 		ReleaseQueueNode(queue, node);
 	}
+	return 1;
 }
 

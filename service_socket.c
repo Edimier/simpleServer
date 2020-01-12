@@ -72,7 +72,6 @@ void acceptConnect(int lfd, int events, void *arg, void * expend)
             printf("%s: max connect limit[%d]\n", __func__, MAX_EVENTS);
             break;
         }
-        int flag = 0;
         if (setNonBlocking(cfd) == FAIL)
         {
             printf("%s: fcntl nonblocking failed, %s\n", __func__, strerror(errno));
@@ -149,14 +148,25 @@ void recvData(int fd, int events, void *arg, void * expend)
 
     MyEvent *ev = (MyEvent *)arg;
 
-    
     char tmpBuff[BUFLEN] = {0};
     // int len = recv(fd, socket_data->m_data, sizeof(socket_data->m_data), 0);
     int len = recv(fd, tmpBuff, BUFLEN, 0);
+
+
+
+    int opt_val;
+    socklen_t opt_len = sizeof(opt_val);
+ 
+    if(getsockopt(fd, SOL_SOCKET, SO_RCVBUF , &opt_val, &opt_len) < 0)
+    {
+        perror("fail to getsockopt");
+    }
+    printf("recv buff len=%d\n", opt_val);
     
     // eventDel(efd, ev);
     if (len > 0) 
     {
+        printf("recieve data len=%d\n", len);
         // 正常情况需要将数据放在ev缓存上，然后解析出来一个包后插入到消息队列，实现起来有点耗时间，这里暂时不实现
         // 主要是处理黏包的情况
         PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
@@ -180,6 +190,7 @@ void recvData(int fd, int events, void *arg, void * expend)
         close(ev->m_fd);
         printf("recv[fd=%d] error[%d]:%s\n", fd, errno, strerror(errno));
     }   
+    sleep(5);
     return;
 }
 
@@ -219,15 +230,20 @@ void * workproc(void *ptr)
         if (node)
         {
             PSocketData data = (PSocketData)node->m_data;
-            printf("workproc read data=%s", data->m_data);
-            int len = send(data->m_fd, data->m_data, data->m_size, 0);
-            if(len <= 0)
+            printf("workproc %ld read data=%s", pthread_self(), data->m_data);
+            // while(1)
             {
-                printf("send[fd=%d] error %s\n", data->m_fd, strerror(errno));
+                int len = send(data->m_fd, data->m_data, data->m_size, 0);
+                if(len <= 0)
+                {
+                    if(errno == EAGAIN)
+                    {
+                    }
+                    printf("send[fd=%d] error %s\n", data->m_fd, strerror(errno));
+                }    
             }
             free(node);
         }
-        //sleep(1);
     }
     
     return NULL;
@@ -256,6 +272,8 @@ void mainLoop()
     pthread_attr_init(&attr);
     // 分离状态
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&tid, &attr, workproc, (void*)&epoll);
+    pthread_create(&tid, &attr, workproc, (void*)&epoll);
     pthread_create(&tid, &attr, workproc, (void*)&epoll);
 
     int i;

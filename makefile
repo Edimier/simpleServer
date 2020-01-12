@@ -8,10 +8,10 @@ DEBUG = 0
 
 ifeq ($(DEBUG),1)
 OBJDIR := $(DEBUG_DIR)
-CPPFLAGS := -g  
+CPPFLAGS := -g   -Wall
 else
 OBJDIR := $(RELEASE_DIR)
-CPPFLAGS := -O2 
+CPPFLAGS := -O2  -Wall
 endif
 
 PROGRAMDIR := $(ROOTDIR)/bin
@@ -32,7 +32,7 @@ DEPS = $(patsubst %.o,%.d,$(OBJS))
 vpath %.c $(SRCDIRS)
 vpath %.o $(OBJDIR)
 
-.PHONY : all objs clean rebuild
+.PHONY : all objs client clean rebuild
 
 all : config $(PROGRAM)
 
@@ -80,5 +80,7 @@ clean:
 	@$(RM) $(FULLOBJS) 
 	@$(RM) $(DEPS)
 	@$(RM) $(PROGRAM)
+	@cd client && $(MAKE) clean
 
-
+client:
+	cd client && $(MAKE)

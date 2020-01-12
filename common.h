@@ -14,7 +14,7 @@
 #include <pthread.h>
 
 #define MAX_EVENTS  1024 /*监听上限*/
-#define BUFLEN      4096    /*缓存区大小*/
+#define BUFLEN      (8 * 1024)    /*缓存区大小*/
 #define SERV_PORT   6666  /*端口号*/
 
 #define FAIL		1
