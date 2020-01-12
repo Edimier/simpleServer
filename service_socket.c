@@ -230,8 +230,9 @@ void * workproc(void *ptr)
         if (node)
         {
             PSocketData data = (PSocketData)node->m_data;
-            printf("workproc %ld read data=%s", pthread_self(), data->m_data);
-            // while(1)
+            printf("workproc %d read data=%s", pthread_self(), data->m_data);
+            int len = send(data->m_fd, data->m_data, data->m_size, 0);
+            if(len <= 0)
             {
                 int len = send(data->m_fd, data->m_data, data->m_size, 0);
                 if(len <= 0)
