@@ -168,19 +168,18 @@ void recvData(int fd, int events, void *arg, void * expend)
         // initPack(&(ev->m_pack));
         addData2Pack(&(ev->m_pack), tmpBuff, len);
 
-        
         // 主要是处理黏包的情况
         while(1)
         {
             char * data = NULL;
             int dataLen = 0;
             int ret = copyPack2Data(&(ev->m_pack), &data, &dataLen);
-            printf("copyPack2Data ret=%d\n", ret);
-            printf("copyPack2Data data=%s\n", data);
-            printf("copyPack2Data dataLen=%d\n", dataLen);
+            // printf("copyPack2Data ret=%d\n", ret);
+            // printf("copyPack2Data data=%s\n", data);
+            // printf("copyPack2Data dataLen=%d\n", dataLen);
             if(ret && data && dataLen > 0)
             {
-                printf("pack:%s\n", data);
+                // printf("pack:%s\n", data);
                 PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
                 memset(socket_data, 0, sizeof(SocketData));
 

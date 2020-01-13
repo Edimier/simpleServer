@@ -113,16 +113,14 @@ void eventSet(MyEvent_s *ev, int fd, callBackFunc cbk, void *arg)
 void * workproc(void *ptr)
 {
 	int sockfd = *(int *)ptr;
-
-
-	int opt_val;
-    socklen_t opt_len = sizeof(opt_val);
+	// int opt_val;
+    // socklen_t opt_len = sizeof(opt_val);
  
-    if(getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF  , &opt_val, &opt_len) < 0)
-    {
-        perror("fail to getsockopt");
-    }
-    printf("send buff len=%d\n", opt_val);
+    // if(getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF  , &opt_val, &opt_len) < 0)
+    // {
+    //     perror("fail to getsockopt");
+    // }
+    // printf("send buff len=%d\n", opt_val);
 
 
 	char buf[1024] = {0};
