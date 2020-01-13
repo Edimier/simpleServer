@@ -135,7 +135,7 @@ void * workproc(void *ptr)
 		{
             char sendBuff[1024] = {0};
 
-            sprintf(sendBuff, "%02d%s", strlen(buf), buf);
+            sprintf(sendBuff, "%02d%s%02d%s", strlen(buf), buf, strlen(buf), buf);
 			int len = send(sockfd, sendBuff, strlen(sendBuff), 0);
 			// int len = send(sockfd, buf, , 0);
 			if (len <= 0)

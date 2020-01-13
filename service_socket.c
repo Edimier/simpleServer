@@ -164,26 +164,37 @@ void recvData(int fd, int events, void *arg, void * expend)
     // eventDel(efd, ev);
     if (len > 0) 
     {
+        printf("recieve data:%s\n", tmpBuff);
         // initPack(&(ev->m_pack));
         addData2Pack(&(ev->m_pack), tmpBuff, len);
 
-        char * data = NULL;
-        int dataLen = 0;
+        
         // 主要是处理黏包的情况
-        while(copyPack2Data(&(ev->m_pack), &data, &len) && data != NULL && dataLen > 0)
+        while(1)
         {
+            char * data = NULL;
+            int dataLen = 0;
+            int ret = copyPack2Data(&(ev->m_pack), &data, &dataLen);
+            printf("copyPack2Data ret=%d\n", ret);
+            printf("copyPack2Data data=%s\n", data);
+            printf("copyPack2Data dataLen=%d\n", dataLen);
+            if(ret && data && dataLen > 0)
+            {
+                printf("pack:%s\n", data);
+                PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
+                memset(socket_data, 0, sizeof(SocketData));
 
-            PSocketData socket_data = (PSocketData)malloc(sizeof(SocketData));
-            memset(socket_data, 0, sizeof(SocketData));
-
-            // socket_data->m_data = (char *)calloc(len + 1, 1);
-            socket_data->m_data = data;
-            socket_data->m_fd = fd;
-            socket_data->m_size = dataLen;
-            // memcpy(socket_data->m_data, tmpBuff, len);
-            InsertTail(epoll->m_queue, (void *)socket_data, 0);
-            data = NULL;
-            dataLen = 0;
+                // socket_data->m_data = (char *)calloc(len + 1, 1);
+                socket_data->m_data = data;
+                socket_data->m_fd = fd;
+                socket_data->m_size = dataLen;
+                // memcpy(socket_data->m_data, tmpBuff, len);
+                InsertTail(epoll->m_queue, (void *)socket_data, 0);
+            }
+            else
+            {
+                break;
+            }
         }
     }
     else if (len == 0)
@@ -198,7 +209,7 @@ void recvData(int fd, int events, void *arg, void * expend)
         close(ev->m_fd);
         printf("recv[fd=%d] error[%d]:%s\n", fd, errno, strerror(errno));
     }   
-    sleep(5);
+    // sleep(5);
     return;
 }
 

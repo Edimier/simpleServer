@@ -169,7 +169,7 @@ int copyPack2Data(PNetPack_s pack, char ** data, int *len)
 			++headTmp;
 		}
 		int headDataLen = atoi(head);
-		if(headDataLen == dataLen)
+		if(headDataLen <= dataLen)
 		{
 			*len = headDataLen;
 			*data = (char *)malloc(headDataLen);
@@ -206,7 +206,7 @@ int copyPack2Data(PNetPack_s pack, char ** data, int *len)
 			}
 			return 1;
 		}
-		else if(headDataLen > dataLen)
+		else
 		{
 			printf("pack data error:%s %d\n", __FILE__, __LINE__);
 		}
@@ -216,7 +216,7 @@ int copyPack2Data(PNetPack_s pack, char ** data, int *len)
 		memcpy(head, pack->m_buff + pack->m_head, 2);
 		int headDataLen = atoi(head);
 
-		if(headDataLen == dataLen)
+		if(headDataLen <= dataLen)
 		{
 			*len = headDataLen;
 			*data = (char *)malloc(headDataLen);
@@ -229,9 +229,14 @@ int copyPack2Data(PNetPack_s pack, char ** data, int *len)
 			{
 				pack->m_head = 0;
 			}
+
+			if(pack->m_head >= pack->m_tail)
+			{
+				pack->m_head = pack->m_tail = 0;	
+			}
 			return 1;
 		}
-		else if(headDataLen > dataLen)
+		else
 		{
 			printf("pack data error:%s %d\n", __FILE__, __LINE__);
 		}
@@ -249,15 +254,23 @@ int main()
 	while( scanf("%s", buf) != EOF)
 	{
         char sendBuff[1024] = {0};
-        sprintf(sendBuff, "%02d%s", strlen(buf), buf);
+        sprintf(sendBuff, "%02d%s%02d%s", strlen(buf), buf, strlen(buf), buf);
 		// int len = send(sockfd, sendBuff, strlen(sendBuff), 0);
 		addData2Pack(&netpack, sendBuff, strlen(sendBuff));
 
-		char * data = NULL;
-		int len = 0;
-		if(copyPack2Data(&netpack, &data, &len))
+		while(1)
 		{
-			printf("get data:%s,len=%d\n", data, len);
+			char * data = NULL;
+			int len = 0;
+			int ret = copyPack2Data(&netpack, &data, &len);
+			if( ret && data && len > 0)
+			{
+				printf("get data:%s,len=%d\n", data, len);
+			}
+			else
+			{
+				break;
+			}
 		}
 
 		printf("input data:");

@@ -4,7 +4,7 @@
 #define PACK_SIZE 4 * 1024
 #define PACK_ADD  1024
 
-#ifdef DEBUG
+#ifdef TESTNETPACK
 	#define PACK_SIZE 10
 	#define PACK_ADD  5
 #endif

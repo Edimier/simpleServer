@@ -8,10 +8,10 @@ DEBUG = 0
 
 ifeq ($(DEBUG),1)
 OBJDIR := $(DEBUG_DIR)
-CPPFLAGS := -g   -Wall
+CPPFLAGS := -g  -Wall
 else
 OBJDIR := $(RELEASE_DIR)
-CPPFLAGS := -O2  -Wall
+CPPFLAGS := -g  -Wall
 endif
 
 PROGRAMDIR := $(ROOTDIR)/bin
